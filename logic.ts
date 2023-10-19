@@ -61,6 +61,12 @@ export type Value = (typeof values)[number];
 
 export type SuiteValue = `${SuiteSymbols}${Value}`;
 
+export const decodemapping = {
+  'D': 'Diamond',
+  'S': 'Spade',
+  'C': 'Club',
+  'H': 'Heart',
+}
 
 export class Card {
   suite: Suite;
@@ -284,6 +290,7 @@ export function getComboCharacteristics(combo: Card[]) {
   return characteristics;
 }
 
+// https://www.pagat.com/climbing/bigtwo.html
 export function isGreaterCombo(cardsOnTable: Card[], cardsToPlay: Card[]) {
   // determine what the current combo is
   const cardsOnTableChars = getComboCharacteristics(cardsOnTable);
@@ -385,6 +392,10 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
 
   if (lastPlayed.length === 2) {
     return isHigherValueDoubles(lastPlayed, currentPlay)
+  }
+
+  if (lastPlayed.length === 1) {
+    return isHigherValue(lastPlayed[0].value, currentPlay[0].value) || isHigherSuite(lastPlayed[0].suite, currentPlay[0].suite);
   }
 
   return isHigherValue(lastPlayed[0].value, currentPlay[0].value);

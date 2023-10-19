@@ -111,7 +111,7 @@ export class Game {
     }
   }
 
-  public performAction(playerId: string, action: Actions, cards: Card[]) {
+  public performAction(playerId: string, action: Actions, cards?: Card[]) {
     if (action === 'playCards') {
       if (
         this.lastPlayedCards && validatePlay(this.lastPlayedCards, cards) ||
@@ -134,6 +134,10 @@ export class Game {
     }
 
     if (action === 'passTurn') {
+      if (this.gameStatus === 'first-turn' || this.lastPlayedCardsPlayer === playerId) {
+        console.log('you cannot pass this turn')
+        return ErrorInvalidPlay
+      }
       this.setNextTurn()
       return PassTurn
     }
