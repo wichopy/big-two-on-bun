@@ -70,6 +70,13 @@ export class Card {
     this.suite = suite;
     this.value = value;
   }
+
+  // serialize() {
+  //   return {
+  //     suite: this.suite,
+  //     value: this.value,
+  //   }
+  // }
 }
 
 export class Player {
@@ -210,6 +217,10 @@ export function isHigherSuite(suite1: Suite, suite2: Suite) {
     suites.findIndex((s) => s === suite2) <
     suites.findIndex((s) => s === suite1)
   );
+}
+
+export function getHighestSuite(...suites: Suite[]) {
+  return suites[Math.min(...suites.map((suitesIn) => suites.findIndex((s) => s === suitesIn)))];
 }
 
 export function getComboCharacteristics(combo: Card[]) {
@@ -356,6 +367,13 @@ export function isGreaterCombo(cardsOnTable: Card[], cardsToPlay: Card[]) {
   return false;
 }
 
+function isHigherValueDoubles(dub1: Card[], dub2: Card[]) {
+  const highestInDub1 = getHighestSuite(...dub1.map(c => c.suite))
+  const highestInDub2 = getHighestSuite(...dub2.map(c => c.suite))
+
+  return isHigherSuite(highestInDub1, highestInDub2)
+}
+
 export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
   if (lastPlayed.length !== currentPlay.length) {
     return false;
@@ -364,38 +382,10 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
   if (lastPlayed.length === 5) {
     return isGreaterCombo(lastPlayed, currentPlay);
   }
-}
 
-class BigTwoEngine {
-  playersTurn: Player;
-  lastPlayedCards: Card[];
-  lastPlayer: Player;
-  playerOrder: Player[];
-
-  constructor() {
-    // set initial player's playersTurn
-    // play with diamond 3 goes first
+  if (lastPlayed.length === 2) {
+    return isHigherValueDoubles(lastPlayed, currentPlay)
   }
 
-  setNextTurn() {
-    const currentplayerindex = this.playerOrder.findIndex(
-      (p) => p === this.playersTurn,
-    );
-    if (currentplayerindex === this.playerOrder.length - 1) {
-      this.playersTurn = this.playerOrder[0];
-    } else {
-      this.playersTurn = this.playerOrder[currentplayerindex + 1];
-    }
-  }
-
-  // wait for player action...
-  validatePlay(cards: Card[]) {
-    // if lastPlayer === currentPlayer, they can play whatever they want
-    // if !lastPlayedCards, they can play whatever they want
-    // look at lastPlayedCards
-    // verify that the play's cards are of higher value than the last played cards
-    // if yes, make this the new lastPlayedCards
-    // if no, reject the request to play these cards
-    // if player has no cards left, they are the winner
-  }
+  return isHigherValue(lastPlayed[0].value, currentPlay[0].value);
 }
