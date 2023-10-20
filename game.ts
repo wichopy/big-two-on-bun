@@ -159,8 +159,7 @@ export class Game {
           this.gameStatus = 'over'
           return GameOver
         }
-        this.setNextTurn()
-        // TODO: Autopass players turns if they don't have any possible moves
+        this.setToNextTurnWithValidMoves()
         return SuccessValidPlay
       } else {
         return ErrorInvalidPlay
