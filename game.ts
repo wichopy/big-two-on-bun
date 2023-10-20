@@ -1,4 +1,4 @@
-import { Card, validatePlay, verifyUserHasCards } from './logic';
+import { Card, validatePlay, verifyUserHasCards, sortForFlush } from './logic';
 import { Deck } from './deck';
 
 type PlayerStatus = 'empty' | 'filled'
@@ -90,6 +90,10 @@ export class Game {
         this.players[playerId].cards.push(deck.draw())
       }
     }
+
+    Object.values(this.players).forEach(player => {
+      sortForFlush(player.cards)
+    })
 
     Object.entries(this.players).forEach(entry => {
       if (entry[1].cards.find(c => c.suite === 'Diamond' && c.value === '3')) {
