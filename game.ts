@@ -5,7 +5,15 @@ type PlayerStatus = 'empty' | 'filled'
 
 type Actions = 'playCards' | 'passTurn' | 'playPowerup'
 
-type GameStatus = 'first-turn' | 'in-progress' | 'over'
+type GameStatus = 
+  // waiting for game to start
+  'waiting'
+  // its the first turn, so the player with the diamond 3 goes first
+  | 'first-turn'
+  // game is in progress
+  | 'in-progress'
+  // game is over, need to start a new game
+  | 'over'
 
 const ErrorInvalidPlay = 'invalid-play' as const
 const ErrorDontHaveCards = 'dont-have-cards' as const
@@ -171,7 +179,7 @@ export class Game {
         console.log('you cannot pass this turn')
         return ErrorInvalidPlay
       }
-      this.setNextTurn()
+      this.setToNextTurnWithValidMoves()
       return PassTurn
     }
   }
