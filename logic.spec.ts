@@ -6,6 +6,7 @@ import {
   getComboCharacteristics,
   sortForStraight,
   areAllSameSuite,
+  validatePlay,
 } from "./logic";
 
 describe("areAllSameSuite", () => {
@@ -321,3 +322,61 @@ describe("compareCombos", () => {
     );
   });
 });
+
+const doubleTwosSH: Card[] = [
+  {
+    value: '2',
+    suite: 'Heart'
+  },
+  {
+    value: '2',
+    suite: 'Spade'
+  }
+]
+
+const doubleTwosCD: Card[] = [
+  {
+    value: '2',
+    suite: 'Club'
+  },
+  {
+    value: '2',
+    suite: 'Diamond'
+  }
+]
+
+const doubleThreesCD: Card[] = [
+  {
+    value: '3',
+    suite: 'Club'
+  },
+  {
+    value: '3',
+    suite: 'Diamond'
+  }
+]
+
+const doubleQueensCD: Card[] = [
+  {
+    value: 'Q',
+    suite: 'Club'
+  },
+  {
+    value: 'Q',
+    suite: 'Diamond'
+  }
+]
+
+describe('validatePlay', () => {
+  test('higher doubles by suite', () => {
+    expect(validatePlay(doubleTwosCD, doubleTwosSH)).toBe(true)
+  })
+
+  test('higher doubles by value', () => {
+    expect(validatePlay(doubleThreesCD, doubleTwosSH)).toBe(true)
+  })
+
+  test("higher doubles by value Q", () => {
+    expect(validatePlay(doubleThreesCD, doubleQueensCD)).toBe(true);
+  });
+})

@@ -85,30 +85,30 @@ export class Card {
   // }
 }
 
-export class Player {
-  name: string;
-  cards: Card[];
+// export class Player {
+//   name: string;
+//   cards: Card[];
 
-  constructor(name, cards) {
-    this.name = name;
-    this.cards = cards;
-  }
+//   constructor(name, cards) {
+//     this.name = name;
+//     this.cards = cards;
+//   }
 
-  pass() {}
+//   pass() {}
 
-  play(cards: Card[]) {
-    return cards;
-  }
+//   play(cards: Card[]) {
+//     return cards;
+//   }
 
-  removeCardsFromHand(cards: Card[]) {
-    cards.forEach((c) => {
-      const index = this.cards.findIndex((card) => c === card);
-      this.cards.splice(index, 1);
-    });
-  }
-}
+//   removeCardsFromHand(cards: Card[]) {
+//     cards.forEach((c) => {
+//       const index = this.cards.findIndex((card) => c === card);
+//       this.cards.splice(index, 1);
+//     });
+//   }
+// }
 
-export const calculateScore = (cards: Card[]) => {};
+// export const calculateScore = (cards: Card[]) => {};
 
 export const sortForFlush = (cards: Card[]) => {
   cards.sort((a, b) => {
@@ -374,7 +374,7 @@ export function isGreaterCombo(cardsOnTable: Card[], cardsToPlay: Card[]) {
   return false;
 }
 
-function isHigherValueDoubles(dub1: Card[], dub2: Card[]) {
+function isHigherSuiteDoubles(dub1: Card[], dub2: Card[]) {
   const highestInDub1 = getHighestSuite(...dub1.map(c => c.suite))
   const highestInDub2 = getHighestSuite(...dub2.map(c => c.suite))
 
@@ -391,7 +391,7 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
   }
 
   if (lastPlayed.length === 2) {
-    return isHigherValueDoubles(lastPlayed, currentPlay)
+    return isHigherValue(lastPlayed[0].value, currentPlay[0].value) || isHigherSuiteDoubles(lastPlayed, currentPlay)
   }
 
   if (lastPlayed.length === 1) {
@@ -399,4 +399,8 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
   }
 
   return isHigherValue(lastPlayed[0].value, currentPlay[0].value);
+}
+
+export function verifyUserHasCards(playerCards, cards) {
+  return cards.every(c => playerCards.find(pc => pc.suite === c.suite && pc.value === c.value))
 }

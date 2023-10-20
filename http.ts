@@ -77,7 +77,7 @@ app.post('/game/:gameId/actions/pass-turn', (ctx, server) => {
   }
 
   return result
-})
+}, { body: 'json' })
 
 app.listen();
 

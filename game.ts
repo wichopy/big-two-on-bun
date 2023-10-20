@@ -1,4 +1,4 @@
-import { Card, validatePlay } from './logic';
+import { Card, validatePlay, verifyUserHasCards } from './logic';
 import { Deck } from './deck';
 
 type PlayerStatus = 'empty' | 'filled'
@@ -8,6 +8,7 @@ type Actions = 'playCards' | 'passTurn' | 'playPowerup'
 type GameStatus = 'first-turn' | 'in-progress' | 'over'
 
 const ErrorInvalidPlay = 'invalid-play' as const
+const ErrorDontHaveCards = 'dont-have-cards' as const
 const SuccessValidPlay = 'valid-play' as const
 const PassTurn = 'pass-turn' as const
 const GameOver = 'game-over' as const
@@ -118,6 +119,9 @@ export class Game {
         this.lastPlayedCardsPlayer === playerId ||
         this.gameStatus === 'first-turn'
       ) {
+        if (!verifyUserHasCards(this.players[playerId].cards, cards)) {
+          return ErrorDontHaveCards
+        }
         this.gameStatus = 'in-progress'
         this.lastPlayedCards = cards
         this.lastPlayedCardsPlayer = playerId
