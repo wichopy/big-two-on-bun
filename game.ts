@@ -9,6 +9,7 @@ type GameStatus = 'first-turn' | 'in-progress' | 'over'
 
 const ErrorInvalidPlay = 'invalid-play' as const
 const ErrorDontHaveCards = 'dont-have-cards' as const
+const ErrorNoCards = 'no-cards' as const
 const SuccessValidPlay = 'valid-play' as const
 const PassTurn = 'pass-turn' as const
 const GameOver = 'game-over' as const
@@ -118,6 +119,10 @@ export class Game {
 
   public performAction(playerId: string, action: Actions, cards?: Card[]) {
     if (action === 'playCards') {
+      if (!cards?.length) {
+        return ErrorNoCards
+      }
+      
       if (
         this.lastPlayedCards && validatePlay(this.lastPlayedCards, cards) ||
         this.lastPlayedCardsPlayer === playerId ||
@@ -135,6 +140,7 @@ export class Game {
           return GameOver
         }
         this.setNextTurn()
+        // TODO: Autopass players turns if they don't have any possible moves
         return SuccessValidPlay
       } else {
         return ErrorInvalidPlay
