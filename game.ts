@@ -43,6 +43,7 @@ export class Game {
   playerRotation: string[];
   lastPlayedCards?: Card[];
   lastPlayedCardsPlayer?: string;
+  log: string[];
   gameStatus: GameStatus
   players: {
     [playerId: string]: {
@@ -69,6 +70,7 @@ export class Game {
     this.currentPlayerTurn = ''; // person with diamond 3
     const deck = new Deck();
     this.players = {}
+    this.log = []
     this.players['player 1'] = {
       cards: [],
       name: 'player 1',
@@ -104,12 +106,14 @@ export class Game {
       sortForFlush(player.cards)
     })
 
+    this.log.push('A new game was started')
+
     Object.entries(this.players).forEach(entry => {
       if (entry[1].cards.find(c => c.suite === 'Diamond' && c.value === '3')) {
         this.currentPlayerTurn = entry[0]
+        this.log.push(`${this.currentPlayerTurn} goes first.`)
       }
     })
-
     this.playerRotation = Object.keys(this.players)
     this.gameStatus = 'first-turn'
   }
@@ -132,25 +136,31 @@ export class Game {
   private setToNextTurnWithValidMoves() {
     if (this.lastPlayedCards?.length === 1 && this.lastPlayedCards[0].value === '2' && this.lastPlayedCards[0].suite === 'Spade') {
       // same players turn again
+      this.log.push(`big 2 was played, so player ${this.currentPlayerTurn} goes again`)
       return
     }
 
     if (this.lastPlayedCards?.length > 1) {
       this.setNextTurn()
       console.log('set next player', this.currentPlayerTurn)
+      this.log.push(`It is now ${this.currentPlayerTurn}'s turn`)
       while (this.players[this.currentPlayerTurn].cards.length < this.lastPlayedCards.length) {
         if (this.currentPlayerTurn === this.lastPlayedCardsPlayer) {
           console.log('or its your turn again', this.currentPlayerTurn !== this.lastPlayedCardsPlayer)
+          this.log.push(`No one had enough cards, its ${this.currentPlayerTurn}'s turn again`)
           return
         }
         console.log(this.currentPlayerTurn, ' has number of cards', this.players[this.currentPlayerTurn].cards.length, ' which is less than', this.lastPlayedCards.length)
+        this.log.push(`${this.currentPlayerTurn} doesnt have enough cards, skip to next player`)
         this.setNextTurn()
         console.log('finding the next player with enough cards to counter', this.currentPlayerTurn)
+        this.log.push(`It is now ${this.currentPlayerTurn}'s turn`)
       }
       return
     }
 
     this.setNextTurn()
+    this.log.push(`It is now ${this.currentPlayerTurn}'s turn`)
   }
 
   public performAction(playerId: string, action: Actions, cards?: Card[]) {
@@ -171,7 +181,9 @@ export class Game {
         this.lastPlayedCards = cards
         this.lastPlayedCardsPlayer = playerId
         this.players[playerId].cards = this.players[playerId].cards.filter(c => !cards.find(cd => cd.suite === c.suite && cd.value === c.value))
+        this.log.push(`player ${playerId} played cards ${cards.map(c => `${c.value} ${c.suite}`)} `)
         if (this.players[playerId].cards.length === 0) {
+          this.log.push(`Game is over, player ${playerId} won!`)
           this.gameStatus = 'over'
           return GameOver
         }
@@ -187,6 +199,7 @@ export class Game {
         console.log('you cannot pass this turn')
         return ErrorInvalidPlay
       }
+      this.log.push(`player ${playerId} passed their turn`)
       this.setToNextTurnWithValidMoves()
       return PassTurn
     }
