@@ -137,9 +137,17 @@ export class Game {
 
     if (this.lastPlayedCards?.length > 1) {
       this.setNextTurn()
-      while (this.players[this.currentPlayerTurn].cards.length < this.lastPlayedCards.length || this.currentPlayerTurn !== this.lastPlayedCardsPlayer) {
+      console.log('set next player', this.currentPlayerTurn)
+      while (this.players[this.currentPlayerTurn].cards.length < this.lastPlayedCards.length) {
+        if (this.currentPlayerTurn === this.lastPlayedCardsPlayer) {
+          console.log('or its your turn again', this.currentPlayerTurn !== this.lastPlayedCardsPlayer)
+          return
+        }
+        console.log(this.currentPlayerTurn, ' has number of cards', this.players[this.currentPlayerTurn].cards.length, ' which is less than', this.lastPlayedCards.length)
         this.setNextTurn()
+        console.log('finding the next player with enough cards to counter', this.currentPlayerTurn)
       }
+      return
     }
 
     this.setNextTurn()
