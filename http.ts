@@ -23,7 +23,16 @@ const games: {
 function handleCreateGame(ctx, server) {
   const uniqueID = crypto.randomUUID()
   console.log('creating game at unique id', uniqueID)
-  games[uniqueID] = new Game()
+  let numPlayers
+  try {
+    const { numPlayers: numplay } = ctx.data
+    numPlayers = numplay
+  } catch (err) {
+    console.log('something went wrong with post body')
+  }
+  games[uniqueID] = new Game({
+    numPlayers
+  })
   if (DEBUG_MODE) {
     const resp = new Response(JSON.stringify({
       id: uniqueID,
@@ -73,7 +82,7 @@ app.get('/game/:gameId', (ctx) => {
   return res
 })
 
-app.post('/game', handleCreateGame)
+app.post('/game', handleCreateGame, { body: 'json' })
 app.post('/game/:gameId/actions/play-cards', (ctx, server) => {
   const { gameId } = ctx.params
   const game = games[gameId]

@@ -27,6 +27,7 @@ export interface GameState {
   playerRotation: string[];
   lastPlayedCards?: Card[];
   lastPlayedCardsPlayer?: string;
+  log: string[];
   gameStatus: GameStatus
   players: {
     [playerId: string]: {
@@ -54,7 +55,13 @@ export class Game {
     }
   }
 
-  constructor(gameState?: GameState) {
+  constructor({
+    numPlayers = 4,
+    gameState,
+  }:{
+    numPlayers?: number
+    gameState?: GameState
+  } = {}) {
     if (gameState) {
       this.currentPlayerTurn = gameState.currentPlayerTurn;
       this.playerRotation = gameState.playerRotation;
@@ -62,8 +69,12 @@ export class Game {
       this.lastPlayedCardsPlayer = gameState.lastPlayedCardsPlayer;
       this.players = gameState.players;
       this.gameStatus = gameState.gameStatus;
-
+      this.log = gameState.log;
       return
+    }
+
+    if (numPlayers < 2 || numPlayers > 4) {
+      throw new Error('invalid number of players')
     }
     // take cards, shuffle deck, deal to players
     // find player with diamond 3, they are the first to start
@@ -114,6 +125,17 @@ export class Game {
         this.log.push(`${this.currentPlayerTurn} goes first.`)
       }
     })
+
+    if (numPlayers < 4) {
+      let deleteCount = 0
+      for (let player of Object.values(this.players)) {
+        if (deleteCount < 4 - numPlayers && this.currentPlayerTurn !== player.id) {
+          console.log('delete player', player)
+          delete this.players[player.id]
+          deleteCount += 1
+        }
+      }
+    }
     this.playerRotation = Object.keys(this.players)
     this.gameStatus = 'first-turn'
   }

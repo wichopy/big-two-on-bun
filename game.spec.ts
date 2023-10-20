@@ -7,6 +7,7 @@ const mockGameState: GameState = {
   lastPlayedCards: undefined,
   lastPlayedCardsPlayer: undefined,
   gameStatus: "first-turn",
+  log: [],
   players: {
     "player 1": {
       cards: [
@@ -207,13 +208,26 @@ describe('Game', () => {
 
     Object.values(game.players).forEach((player) => {
       expect(player.cards.length).toBe(13)
-      // console.log(player.cards)
-      // console.log(game)
     })
   })
 
+
+  test('less than 4 players', () => {
+    const game = new Game({
+      numPlayers: 3,
+    })
+
+    expect(Object.keys(game.players).length).toBe(3)
+
+    const game2 = new Game({
+      numPlayers: 2,
+    })
+
+    expect(Object.keys(game2.players).length).toBe(2)
+  })
+
   test('start playing game', () => {
-    const game = new Game(mockGameState)
+    const game = new Game({ gameState: mockGameState })
 
     let result = game.performAction('player 4', 'playCards', [
       {
