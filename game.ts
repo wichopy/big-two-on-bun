@@ -117,6 +117,26 @@ export class Game {
     }
   }
 
+  // This method is for better UX. Certain moves are guarenteed to not be beatable, so we shouldnt wait for everyone to pass on these.
+  // Be careful here as we dont want to expose people's hands unintentionally, this should only apply in 2 cases:
+  // - the big 2 is played
+  // - Someone plays multiple cards, and everyone else has less cards than the played cards
+  private setToNextTurnWithValidMoves() {
+    if (this.lastPlayedCards?.length === 1 && this.lastPlayedCards[0].value === '2' && this.lastPlayedCards[0].suite === 'Spade') {
+      // same players turn again
+      return
+    }
+
+    if (this.lastPlayedCards?.length > 1) {
+      this.setNextTurn()
+      while (this.players[this.currentPlayerTurn].cards.length < this.lastPlayedCards.length || this.currentPlayerTurn !== this.lastPlayedCardsPlayer) {
+        this.setNextTurn()
+      }
+    }
+
+    this.setNextTurn()
+  }
+
   public performAction(playerId: string, action: Actions, cards?: Card[]) {
     if (action === 'playCards') {
       if (!cards?.length) {
