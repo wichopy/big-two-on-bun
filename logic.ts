@@ -391,6 +391,10 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
   }
 
   if (lastPlayed.length === 2) {
+    let first = currentPlay[0].value
+    if (!currentPlay.every(c => c.value === first)) {
+      return false
+    }
     return isHigherValue(lastPlayed[0].value, currentPlay[0].value) || isHigherSuiteDoubles(lastPlayed, currentPlay)
   }
 
@@ -398,6 +402,10 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
     return isHigherValue(lastPlayed[0].value, currentPlay[0].value) || isHigherSuite(lastPlayed[0].suite, currentPlay[0].suite);
   }
 
+  let first = currentPlay[0].value
+  if (!currentPlay.every(c => c.value === first)) {
+    return false
+  }
   return isHigherValue(lastPlayed[0].value, currentPlay[0].value);
 }
 
