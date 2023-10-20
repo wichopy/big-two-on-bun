@@ -1,8 +1,12 @@
 import { Router } from '@stricjs/router';
 import { Card, Value, decodemapping }  from './logic'
 import { Game } from './game'
+import { CORS, writeHead } from '@stricjs/utils';
 
 console.log("I'm running Bun on port 3000");
+
+const cors = new CORS();
+const send =  writeHead({ headers: cors.headers });
 
 const DEBUG_MODE = true
 const ENABLE_CORS = true
@@ -53,7 +57,7 @@ function decodeCards(cardStr: string[]) {
   return cardStr.map(crdstr => {
     return new Card(
       decodemapping[crdstr.charAt(0)],
-      crdstr.charAt(1) as Value
+      crdstr.slice(1) as Value
     )
   })
 }
@@ -78,21 +82,27 @@ app.post('/game', handleCreateGame)
 app.post('/game/:gameId/actions/play-cards', (ctx, server) => {
   const { gameId } = ctx.params
   const game = games[gameId]
-  console.log(ctx.data)
+  console.log('play card action', ctx.data)
   const { playerId, cards } = ctx.data
   console.log('body', playerId, cards)
   const decodedCards = decodeCards(cards)
   const result = game.performAction(playerId, 'playCards', decodedCards)
   console.log('action result', gameId, result)
   if (DEBUG_MODE) {
-    return new Response(JSON.stringify({
+    const res = new Response(JSON.stringify({
       id: gameId,
       ...games[gameId],
     }))
+
+    if (ENABLE_CORS) {
+      res.headers.set('Access-Control-Allow-Origin', '*')
+      res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    }
+    return res
   }
 
   return result
-}, { body: 'json' })
+}, { body: 'json' }).wrap('/game/:gameId/actions/play-cards', send)
 
 app.post('/game/:gameId/actions/pass-turn', (ctx, server) => {
   const { gameId } = ctx.params
@@ -108,7 +118,7 @@ app.post('/game/:gameId/actions/pass-turn', (ctx, server) => {
   }
 
   return result
-}, { body: 'json' })
+}, { body: 'json' }).wrap('/game/:gameId/actions/pass-turn', send)
 
 app.listen();
 
