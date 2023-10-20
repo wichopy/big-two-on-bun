@@ -5,6 +5,7 @@ import { Game } from './game'
 console.log("I'm running Bun on port 3000");
 
 const DEBUG_MODE = true
+const ENABLE_CORS = true
 // routes
 // GET /api/game/:gameId -> returns game state
 // POST /api/game -> create game -> return game id
@@ -20,13 +21,27 @@ function handleCreateGame(ctx, server) {
   console.log('creating game at unique id', uniqueID)
   games[uniqueID] = new Game()
   if (DEBUG_MODE) {
-    return new Response(JSON.stringify({
+    const resp = new Response(JSON.stringify({
       id: uniqueID,
       ...games[uniqueID],
     }))
+    if (ENABLE_CORS) {
+      resp.headers.set('Access-Control-Allow-Origin', '*')
+      resp.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    }
+
+    return resp
   }
 
-  return uniqueID
+  const resp = new Response(JSON.stringify({
+    id: uniqueID
+  }))
+  if (ENABLE_CORS) {
+    resp.headers.set('Access-Control-Allow-Origin', '*')
+    resp.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  }
+
+  return resp
 }
 
 
@@ -42,6 +57,22 @@ function decodeCards(cardStr: string[]) {
     )
   })
 }
+
+app.get('/game/:gameId', (ctx) => {
+  const { gameId } = ctx.params
+
+  const res = new Response(JSON.stringify({
+    id: gameId,
+      ...games[gameId],
+  }))
+
+  if (ENABLE_CORS) {
+    res.headers.set('Access-Control-Allow-Origin', '*')
+    res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  }
+
+  return res
+})
 
 app.post('/game', handleCreateGame)
 app.post('/game/:gameId/actions/play-cards', (ctx, server) => {
