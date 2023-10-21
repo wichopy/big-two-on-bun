@@ -61,6 +61,16 @@ export type Value = (typeof values)[number];
 
 export type SuiteValue = `${SuiteSymbols}${Value}`;
 
+const comboRanks = [
+  "straight-flush",
+  "four-of-a-kind",
+  "full-house",
+  "flush",
+  "straight",
+] as const;
+
+type ComboRanks = (typeof comboRanks)[number];
+
 export const decodemapping = {
   'D': 'Diamond',
   'S': 'Spade',
@@ -84,31 +94,6 @@ export class Card {
   //   }
   // }
 }
-
-// export class Player {
-//   name: string;
-//   cards: Card[];
-
-//   constructor(name, cards) {
-//     this.name = name;
-//     this.cards = cards;
-//   }
-
-//   pass() {}
-
-//   play(cards: Card[]) {
-//     return cards;
-//   }
-
-//   removeCardsFromHand(cards: Card[]) {
-//     cards.forEach((c) => {
-//       const index = this.cards.findIndex((card) => c === card);
-//       this.cards.splice(index, 1);
-//     });
-//   }
-// }
-
-// export const calculateScore = (cards: Card[]) => {};
 
 export const sortForFlush = (cards: Card[]) => {
   cards.sort((a, b) => {
@@ -149,16 +134,6 @@ export const areAllSameSuite = (cards: Card[]) => {
   const firstNonZeroIndex = suites.findIndex((s) => map[s] !== 0);
   return suites.every((s, i) => map[s] === 0 || i === firstNonZeroIndex);
 };
-
-const comboRanks = [
-  "straight-flush",
-  "four-of-a-kind",
-  "full-house",
-  "flush",
-  "straight",
-] as const;
-
-type ComboRanks = (typeof comboRanks)[number];
 
 export interface ComboCharacteristics {
   rank?: ComboRanks;
@@ -381,7 +356,31 @@ function isHigherSuiteDoubles(dub1: Card[], dub2: Card[]) {
   return isHigherSuite(highestInDub1, highestInDub2)
 }
 
-export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
+function isValidCombo(cardsToPlay: Card[]) {
+  const chars = getComboCharacteristics(cardsToPlay)
+
+  if (!chars.isStraight && !chars.flushSuite && !chars.hasTriple && !chars.hasQuadruple) {
+    return false
+  }
+
+  return true
+}
+
+export function validatePlay(lastPlayed: Card[] | undefined, currentPlay: Card[]) {
+  if (!lastPlayed) {
+    if (currentPlay.length < 5) {
+      let first = currentPlay[0].value
+      if (!currentPlay.every(c => c.value === first)) {
+        console.log('not all same value')
+        return false
+      }
+
+      return true
+    }
+
+    return isValidCombo(currentPlay)    
+  }
+
   if (lastPlayed.length !== currentPlay.length) {
     return false;
   }
@@ -393,6 +392,7 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
   if (lastPlayed.length === 2) {
     let first = currentPlay[0].value
     if (!currentPlay.every(c => c.value === first)) {
+      console.log('not all same value')
       return false
     }
     return isHigherValue(lastPlayed[0].value, currentPlay[0].value) || isHigherSuiteDoubles(lastPlayed, currentPlay)
@@ -404,6 +404,7 @@ export function validatePlay(lastPlayed: Card[], currentPlay: Card[]) {
 
   let first = currentPlay[0].value
   if (!currentPlay.every(c => c.value === first)) {
+    console.log('not all same value')
     return false
   }
   return isHigherValue(lastPlayed[0].value, currentPlay[0].value);

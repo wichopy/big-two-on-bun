@@ -199,6 +199,9 @@ export class Game {
         if (!verifyUserHasCards(this.players[playerId].cards, cards)) {
           return ErrorDontHaveCards
         }
+        if (!validatePlay(undefined, cards)){
+          return ErrorInvalidPlay
+        }
         this.gameStatus = 'in-progress'
         this.lastPlayedCards = cards
         this.lastPlayedCardsPlayer = playerId
