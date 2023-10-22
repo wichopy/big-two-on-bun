@@ -22,6 +22,8 @@ const SuccessValidPlay = 'valid-play' as const
 const PassTurn = 'pass-turn' as const
 const GameOver = 'game-over' as const
 
+const store = {}
+
 export interface GameState {
   currentPlayerTurn: string;
   playerRotation: string[];
@@ -228,5 +230,19 @@ export class Game {
       this.setToNextTurnWithValidMoves()
       return PassTurn
     }
+  }
+}
+
+export function createGame({ numPlayers }) {
+  const uniqueID = crypto.randomUUID()
+  const game = new Game({
+    numPlayers
+  })
+
+  store[uniqueID] = game
+
+  return {
+    id: uniqueID,
+    game,
   }
 }
