@@ -1,7 +1,5 @@
 import { Game, createGame } from './game'
 
-const rooms = {}
-
 interface User {
   id: string
   name: string
@@ -44,6 +42,7 @@ export class Room {
   viewers: User[]
   players: Record<string, Player>
   status: RoomStatus
+
   constructor({
     hostId,
     hostName,
@@ -55,7 +54,12 @@ export class Room {
     this.hostId = hostId
     this.hostName = hostName
     this.viewers = []
-    this.players = {}
+    this.players = {
+      'player 1': null,
+      'player 2': null,
+      'player 3': null,
+      'player 4': null,
+    }
     this.currentGameId = ''
     this.status = 'waiting'
   }
@@ -83,35 +87,45 @@ export class Room {
   }
 
   joinRoom(user: User) {
+    console.log('adding user', user, 'to game', this.gameCode)
     this.viewers.push(user)
   }
 
+  // Handle what happens in mid game??
   leaveRoom(userId: string) {
     this.viewers = this.viewers.filter(user => user.id !== userId)
-    delete this.players[userId]
+    const entry = Object.entries(this.players).find(entry => entry[1].userId === userId)
+    if (entry) {
+      delete this.players[entry[0]]
+    }
+  }
+
+  // TODO:
+  unsitFromGameSlot() {
+    // Can only do when game is not in progress
+
   }
 
   sitInGameSlot(userId: string, gameSlot: string) {
+    console.log(`add player ${userId} to slot ${gameSlot}`)
+    // if (!this.isViewer(userId) || this.hostId !== userId) {
+    //   throw new Error('user is not a viewer or host')
+    // }
+    
     const player = {
       userId,
       gameSlot,
-      name: this.viewers.find(user => user.id === userId).name
+      name: this.viewers.find(user => user.id === userId)?.name || this.hostName
     }
-    this.players[userId] = player
+    this.players[gameSlot] = player
+    console.log(this.players)
     this.viewers = this.viewers.filter(user => user.id !== userId)
   }
 
   startGame() {
     const game = createGame({
-      numPlayers: this.players.size,
+      numPlayers: Object.keys(this.players).length,
     })
-    const playerKeys = Object.keys(this.players)
-    Object.values(game.game.players).forEach((player, i) => {
-      this.players[playerKeys[i]].gameSlot = player.id
-    })
-    // const game = new Game({
-    //   numPlayers: this.players.size,
-    // })
     this.currentGameId = game.id
   }
 }

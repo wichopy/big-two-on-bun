@@ -80,9 +80,13 @@ app.ws("/room/updates", {
     ws.subscribe(channel);
     ws.publish(channel, msg);
     const room = readRoomGame(tokenObj.gameCode)
+    const game = getGame(room.currentGameId)
     const payload = {
       type: 'room-update',
-      payload: room,
+      payload: {
+        ...room,
+        game: game?.getViewerData(),
+      },
     }
     console.log('notify of join', payload)
     ws.publish(channel, JSON.stringify(payload))
@@ -172,9 +176,7 @@ function createRoom(ctx, server) {
   });
   const res = new Response(
     JSON.stringify({
-      gameCode: room.gameCode,
-      hostName: room.hostName,
-      status: room.status,
+      ...room
     }),
     {
       headers: {
@@ -188,10 +190,12 @@ function createRoom(ctx, server) {
   return res;
 }
 
+type RouteCtx = Parameters<Handler>[0]
 type RouterMeta = Parameters<Handler>[1]
 
 function joinRoom(ctx, meta: RouterMeta) {
-  const { gameCode, userId, userName } = ctx.data;
+  const { gameCode } = ctx.params;
+  const { userId, userName } = ctx.data;
 
   if (!gameCode || !userId) {
     return errorResponse('game code and user id is needed', ERROR_INVALID_ROOM_REQUEST, 400)
@@ -223,6 +227,29 @@ function startGame(ctx, server) {
   startRoomGame(gameCode);
 
   return new Response(JSON.stringify({}));
+}
+
+function sitInGameSlot(ctx: RouteCtx, meta: RouterMeta) {
+  const gameCode = ctx.params.gameCode
+  const { userId, userName, slot } = ctx.data;
+
+  const room = readRoomGame(gameCode)
+  room.sitInGameSlot(userId, slot)
+
+  meta.server.publish(makeGameChannel(gameCode), JSON.stringify({ 
+    type: 'room-update',
+    payload: {
+      ...room,
+    }
+  }))
+
+  return new Response(JSON.stringify({}), {
+    headers: {
+      "Content-Type": "application/json",
+      "Access-control-allow-origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+    }
+  })
 }
 
 function decodeCards(cardStr: string[]) {
@@ -341,8 +368,8 @@ app
     body: "json",
   })
   .wrap("/room/:gameCode/action/start", send);
-// app.post('/room/:gameCode/action/sit', sitInGameSlot, {
-//   body: 'json'
-
+app.post('/room/:gameCode/action/sit', sitInGameSlot, {
+  body: 'json'
+})
 app.listen();
 console.log("Starting big 2 server on port: ", PORT);
