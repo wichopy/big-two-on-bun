@@ -60,6 +60,28 @@ export class Room {
     this.status = 'waiting'
   }
 
+  getViewerData() {
+    return {
+      hostName: this.hostName,
+      gameCode: this.gameCode,
+      viewers: this.viewers,
+      players: this.players,
+      status: this.status,
+    }
+  }
+
+  isInRoom(userId: string) {
+    return this.hostId === userId || this.isViewer(userId) || this.isPlayer(userId)
+  }
+
+  isViewer(userId: string) {
+    return this.viewers.some(user => user.id === userId)
+  }
+
+  isPlayer(userId: string) {
+    return Object.values(this.players).some(player => player.userId === userId)
+  }
+
   joinRoom(user: User) {
     this.viewers.push(user)
   }
@@ -118,6 +140,10 @@ export function joinRoomByGameCode(gameCode: string, userId: string, userName: s
   })
 
   return room
+}
+
+export function readRoom(gameCode) {
+  return store[gameCode]
 }
 
 export function startGame(gameCode: string) {

@@ -22,7 +22,7 @@ const SuccessValidPlay = 'valid-play' as const
 const PassTurn = 'pass-turn' as const
 const GameOver = 'game-over' as const
 
-const store = {}
+const store: Record<string, Game> = {}
 
 export interface GameState {
   currentPlayerTurn: string;
@@ -187,6 +187,21 @@ export class Game {
     this.log.push(`It is now ${this.currentPlayerTurn}'s turn`)
   }
 
+  public getViewerData() {
+    return {
+      currentPlayerTurn: this.currentPlayerTurn,
+      lastPlayed: this.lastPlayedCards,
+      status: this.gameStatus,
+      log: this.log,
+      playerCards: {
+        'player 1': this.players['player 1'].cards.length,
+        'player 2': this.players['player 2'].cards.length,
+        'player 3': this.players['player 3'].cards.length,
+        'player 4': this.players['player 4'].cards.length,
+      },
+    }
+  }
+
   public performAction(playerId: string, action: Actions, cards?: Card[]) {
     if (action === 'playCards') {
       if (!cards?.length) {
@@ -245,4 +260,8 @@ export function createGame({ numPlayers }) {
     id: uniqueID,
     game,
   }
+}
+
+export function getGame(gameId: string) {
+  return store[gameId]
 }

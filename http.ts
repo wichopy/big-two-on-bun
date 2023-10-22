@@ -1,10 +1,11 @@
-import { Router } from "@stricjs/router";
+import { Handler, Router } from "@stricjs/router";
 import { Card, Value, decodemapping } from "./logic";
-import { Game } from "./game";
+import { Game, getGame } from "./game";
 import {
   handleNewRoom,
   joinRoomByGameCode,
   startGame as startRoomGame,
+  readRoom as readRoomGame,
 } from "./gamerooms";
 import { CORS, writeHead } from "@stricjs/utils";
 
@@ -22,11 +23,81 @@ const serverError = (message, code) => ({
   message,
 });
 
-const ERROR_INVALID_ROOM_REQUEST = "ERR-001";
+const ERROR_INVALID_ROOM_REQUEST = "ERR-001" as const;
+const ERROR_ROOM_NOT_FOUND = 'ERR-002' as const;
+
+type ErrorCodes = typeof ERROR_INVALID_ROOM_REQUEST | typeof ERROR_ROOM_NOT_FOUND
+
+interface WSToken {
+  userId: string
+  userName: string
+  gameCode: string
+}
+
+const errorResponse = (message: string, code: ErrorCodes, statusCode: number) => {
+  return new Response(JSON.stringify(serverError(message, code)), {
+    status: statusCode,
+  })
+}
+
+const extractToken = (url: string) => {
+  const theURL = new URL(url)
+  const searchParams = new URLSearchParams(theURL.search)
+  const token = searchParams.get('token')
+
+  const decodedToken = atob(token)
+  const json: WSToken = JSON.parse(decodedToken)
+  return json
+}
 
 const app = new Router({
   port: PORT,
 });
+
+const makeGameChannel = (gameCode: string) => `channel-game-${gameCode}`
+
+const extractFromMeta = ws => {
+  const { userId, userName, gameCode } = ws.data.meta
+  return {
+    userId,
+    userName,
+    gameCode,
+  }
+}
+app.ws("/room/updates", {
+  open(ws) {
+    const url = ws.data.ctx.url
+    const tokenObj = extractToken(url)
+
+    // Inject meta data into existing meta
+    ws.data.meta = {
+      ...ws.data.meta,
+      ...tokenObj,
+    }
+
+    const msg = `${tokenObj.userName} has entered the game ${tokenObj.gameCode}}`;
+    const channel = makeGameChannel(tokenObj.gameCode)
+    ws.subscribe(channel);
+    ws.publish(channel, msg);
+    const room = readRoomGame(tokenObj.gameCode)
+    const payload = {
+      type: 'room-update',
+      payload: room,
+    }
+    console.log('notify of join', payload)
+    ws.publish(channel, JSON.stringify(payload))
+  },
+  message(ws, data) {
+    const channel = makeGameChannel(ws.data.gameCode)
+    ws.publish(channel, data)
+  },
+  close(ws) {
+    const meta = extractFromMeta(ws)
+    const channel = makeGameChannel(meta.gameCode)
+    ws.unsubscribe(channel)
+    ws.publish(channel, `${meta.userName} has left the game`)
+  }
+})
 
 const games: {
   [key: string]: Game;
@@ -113,30 +184,20 @@ function createRoom(ctx, server) {
       },
     }
   );
-  // res.headers.set('Content-Type', 'application/json')
 
   return res;
 }
 
-function joinRoom(ctx, server) {
+type RouterMeta = Parameters<Handler>[1]
+
+function joinRoom(ctx, meta: RouterMeta) {
   const { gameCode, userId, userName } = ctx.data;
 
   if (!gameCode || !userId) {
-    const resp = new Response(
-      JSON.stringify(
-        serverError(
-          "game code and user id is needed",
-          ERROR_INVALID_ROOM_REQUEST
-        )
-      )
-    );
-    resp.status = 400;
-
-    return resp;
+    return errorResponse('game code and user id is needed', ERROR_INVALID_ROOM_REQUEST, 400)
   }
 
   const room = joinRoomByGameCode(gameCode, userId, userName);
-
   return new Response(JSON.stringify({
     ...room,
   }), {
@@ -251,13 +312,30 @@ app
   .post("/room", createRoom, {
     body: "json",
   })
+
+app.post('/room/:gameCode/actions/wstoken', (ctx) => {
+  const { userId, userName } = ctx.data;
+  const { gameCode } = ctx.params;
+  const rawToken: WSToken = {userId, userName, gameCode}
+  const token = btoa(JSON.stringify(rawToken))
+
+  return new Response(token, {
+    headers: {
+        "Content-Type": "application/text",
+        "Access-control-allow-origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+    }
+  })
+}, {
+  body: 'json'
+})
+
 app
   .post("/room/:gameCode/actions/join", joinRoom, {
     body: "json",
   })
 // app.post('/room/:gameCode/action/leave', leaveRoom, {
 //   body: 'json'
-// }).wrap('/room/:gameCode/action/leave', send)
 app
   .post("/room/:gameCode/action/start", startGame, {
     body: "json",
@@ -265,7 +343,6 @@ app
   .wrap("/room/:gameCode/action/start", send);
 // app.post('/room/:gameCode/action/sit', sitInGameSlot, {
 //   body: 'json'
-// }).wrap('/room/:gameCode/action/sit', send)
 
 app.listen();
 console.log("Starting big 2 server on port: ", PORT);
