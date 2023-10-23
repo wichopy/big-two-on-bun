@@ -1,4 +1,5 @@
-import { Game, createGame } from './game'
+import { Card } from './logic'
+import { Game, createGame, getGame } from './game'
 
 interface User {
   id: string
@@ -64,16 +65,6 @@ export class Room {
     this.status = 'waiting'
   }
 
-  getViewerData() {
-    return {
-      hostName: this.hostName,
-      gameCode: this.gameCode,
-      viewers: this.viewers,
-      players: this.players,
-      status: this.status,
-    }
-  }
-
   isInRoom(userId: string) {
     return this.hostId === userId || this.isViewer(userId) || this.isPlayer(userId)
   }
@@ -123,10 +114,53 @@ export class Room {
   }
 
   startGame() {
+    const slotstokeep = Object.entries(this.players).map(entry => entry[1] ? entry[0] : null).filter(Boolean)
     const game = createGame({
-      numPlayers: Object.keys(this.players).length,
+      numPlayers: slotstokeep.length,
+      slotsToKeep: slotstokeep,
     })
     this.currentGameId = game.id
+  }
+
+  getSlotByPlayerId(userId: string) {
+    return Object.keys(this.players).find(key => this.players[key].userId === userId)
+  }
+
+  playCards(userId: string, cards: Card[]) {
+    const game = getGame(this.currentGameId)
+    const slot = this.getSlotByPlayerId(userId)
+    if (game.currentPlayerTurn !== slot) {
+      throw new Error('not your turn')
+    }
+    const result = game.performAction(slot, 'playCards', cards)
+    return result
+  }
+
+  passTurn(userId: string) {
+    const game = getGame(this.currentGameId)
+    const slot = this.getSlotByPlayerId(userId)
+    const result = game.performAction(slot, 'passTurn')
+    return result
+  }
+
+  getViewerData() {
+    const game = getGame(this.currentGameId)
+    return {
+      hostName: this.hostName,
+      gameCode: this.gameCode,
+      viewers: this.viewers,
+      players: this.players,
+      status: this.status,
+      ...game.getViewerData(),
+    }
+  }
+
+  getPlayerUpdate(slot) {
+    const game = getGame(this.currentGameId)
+    return {
+      ...game.getPlayerData(slot),
+      slot,
+    }
   }
 }
 
@@ -164,4 +198,8 @@ export function startGame(gameCode: string) {
   const room = store[gameCode]
 
   room.startGame()
+}
+
+export function getRoomIdByGameId(gameId: string) {
+  return Object.entries(store).find(entry => entry[1].currentGameId === gameId)?.[1]
 }

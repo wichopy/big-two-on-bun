@@ -1,4 +1,4 @@
-import { Card, validatePlay, verifyUserHasCards, sortForFlush } from './logic';
+import { Card, validatePlay, verifyUserHasCards, sortForFlush, isHigherSuite, isHigherValue } from './logic';
 import { Deck } from './deck';
 
 type PlayerStatus = 'empty' | 'filled'
@@ -59,9 +59,11 @@ export class Game {
 
   constructor({
     numPlayers = 4,
+    slotsToKeep,
     gameState,
   }:{
     numPlayers?: number
+    slotsToKeep?: string[]
     gameState?: GameState
   } = {}) {
     if (gameState) {
@@ -78,6 +80,8 @@ export class Game {
     if (numPlayers < 2 || numPlayers > 4) {
       throw new Error('invalid number of players')
     }
+
+    console.log('creating game with configs', numPlayers, slotsToKeep)
     // take cards, shuffle deck, deal to players
     // find player with diamond 3, they are the first to start
     this.currentPlayerTurn = ''; // person with diamond 3
@@ -121,25 +125,38 @@ export class Game {
 
     this.log.push('A new game was started')
 
-    Object.entries(this.players).forEach(entry => {
-      if (entry[1].cards.find(c => c.suite === 'Diamond' && c.value === '3')) {
-        this.currentPlayerTurn = entry[0]
-        this.log.push(`${this.currentPlayerTurn} goes first.`)
-      }
-    })
-
     if (numPlayers < 4) {
       let deleteCount = 0
       for (let player of Object.values(this.players)) {
-        if (deleteCount < 4 - numPlayers && this.currentPlayerTurn !== player.id) {
+        if (deleteCount < 4 - numPlayers && !slotsToKeep.includes(player.id)) {
           console.log('delete player', player)
           delete this.players[player.id]
           deleteCount += 1
         }
       }
     }
+
+    let lowestPlayer
+    let lowestCard: Card = {
+      value: '2',
+      suite: 'Spade'
+    }
+    Object.entries(this.players).forEach(entry => {
+      entry[1].cards.forEach(card => {
+        if (!isHigherValue(lowestCard.value, card.value) || !isHigherSuite(lowestCard.suite, card.suite)) {
+          lowestCard = card
+          lowestPlayer = entry[0]
+        }
+      })
+    })
+
+    this.currentPlayerTurn = lowestPlayer
+    this.log.push(`${this.currentPlayerTurn} goes first.`)
+
     this.playerRotation = Object.keys(this.players)
     this.gameStatus = 'first-turn'
+
+    console.log('game created', this)
   }
 
   private setNextTurn() {
@@ -194,11 +211,19 @@ export class Game {
       status: this.gameStatus,
       log: this.log,
       playerCards: {
-        'player 1': this.players['player 1'].cards.length,
-        'player 2': this.players['player 2'].cards.length,
-        'player 3': this.players['player 3'].cards.length,
-        'player 4': this.players['player 4'].cards.length,
+        'player 1': this.players['player 1']?.cards?.length || 0,
+        'player 2': this.players['player 2']?.cards?.length || 0,
+        'player 3': this.players['player 3']?.cards?.length || 0,
+        'player 4': this.players['player 4']?.cards?.length || 0,
       },
+    }
+  }
+
+  public getPlayerData(slot) {
+    return {
+      yourTurn: this.currentPlayerTurn === slot,
+      youHaveToGo: this.lastPlayedCardsPlayer === slot || this.gameStatus === 'first-turn',
+      cards: this.players[slot]?.cards || [],
     }
   }
 
@@ -248,10 +273,11 @@ export class Game {
   }
 }
 
-export function createGame({ numPlayers }) {
+export function createGame({ numPlayers, slotsToKeep }) {
   const uniqueID = crypto.randomUUID()
   const game = new Game({
-    numPlayers
+    numPlayers,
+    slotsToKeep,
   })
 
   store[uniqueID] = game

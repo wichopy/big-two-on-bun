@@ -1,4 +1,4 @@
-import { Handler, Router } from "@stricjs/router";
+import { Handler, Router, WSContext } from "@stricjs/router";
 import { Card, Value, decodemapping } from "./logic";
 import { Game, getGame } from "./game";
 import {
@@ -6,16 +6,17 @@ import {
   joinRoomByGameCode,
   startGame as startRoomGame,
   readRoom as readRoomGame,
+  getRoomIdByGameId,
 } from "./gamerooms";
-import { CORS, writeHead } from "@stricjs/utils";
+// import { CORS, writeHead } from "@stricjs/utils";
+import { ServerWebSocket } from "bun";
 
-const cors = new CORS();
-const send = writeHead({ headers: cors.headers });
+// const cors = new CORS();
+// const send = writeHead({ headers: cors.headers });
 
 const DEBUG_MODE = true;
 const ENABLE_CORS = true;
 const PORT = 3000;
-// POST /api/game/:gameId/action/apply-powerup
 
 const serverError = (message, code) => ({
   error: true,
@@ -64,6 +65,9 @@ const extractFromMeta = ws => {
     gameCode,
   }
 }
+
+const wsClients = new Map<string, ServerWebSocket<WSContext<"/room/updates"> & Dict<any>>>()
+
 app.ws("/room/updates", {
   open(ws) {
     const url = ws.data.ctx.url
@@ -90,8 +94,10 @@ app.ws("/room/updates", {
     }
     console.log('notify of join', payload)
     ws.publish(channel, JSON.stringify(payload))
+    wsClients.set(tokenObj.userId, ws)
   },
   message(ws, data) {
+    console.log('incoming websocket message', data)
     const channel = makeGameChannel(ws.data.gameCode)
     ws.publish(channel, data)
   },
@@ -100,6 +106,7 @@ app.ws("/room/updates", {
     const channel = makeGameChannel(meta.gameCode)
     ws.unsubscribe(channel)
     ws.publish(channel, `${meta.userName} has left the game`)
+    wsClients.delete(meta.userId)
   }
 })
 
@@ -155,17 +162,11 @@ function handleCreateGame(ctx, server) {
 }
 
 function createRoom(ctx, server) {
+  console.log('create room')
   const { userId, userName } = ctx.data;
 
   if (!userId) {
-    const resp = new Response(
-      JSON.stringify(
-        serverError("user id is needed", ERROR_INVALID_ROOM_REQUEST)
-      )
-    );
-    resp.status = 400;
-
-    return resp;
+    return errorResponse('user id is needed', ERROR_INVALID_ROOM_REQUEST, 400)
   }
 
   const room = handleNewRoom(userId, userName);
@@ -213,20 +214,46 @@ function joinRoom(ctx, meta: RouterMeta) {
   });
 }
 
-function startGame(ctx, server) {
-  const { gameCode } = ctx.data;
-
-  // if (!gameCode || !gameId) {
-  //   const resp = new Response(JSON.stringify(serverError('game code and game id is needed', ERROR_INVALID_ROOM_REQUEST)))
-  //   resp.status = 400
-
-  //   return resp
-  // }
-  // const room = store[gameCode]
-  // room.startGame(gameId)
+function startGame(ctx: RouteCtx, server: RouterMeta) {
+  console.log('start!!')
+  const { gameCode } = ctx.params;
+  const { userId } = ctx.data;
+  const room = readRoomGame(gameCode)
+  if (userId !== room.hostId) {
+    return errorResponse('only host can start game', ERROR_INVALID_ROOM_REQUEST, 400)
+  }
+  console.log('starting game')
   startRoomGame(gameCode);
 
-  return new Response(JSON.stringify({}));
+  const game = getGame(room.currentGameId)
+  console.log('the game', room.currentGameId)
+  server.server.publish(makeGameChannel(gameCode), JSON.stringify({
+    type: 'room-update',
+    payload: {
+      ...room.getViewerData(),
+    },
+  }))
+
+  Object.entries(room.players).forEach(entry => {
+    const wsClient = wsClients.get(entry[1]?.userId)
+    if (!wsClient) return
+    const playerPayload = {
+      type: 'player-update',
+      payload: {
+        ...room.getPlayerUpdate(entry[0])
+      }
+    }
+    wsClient.send(JSON.stringify(playerPayload))
+  })
+  // server.server.
+
+  return new Response(JSON.stringify({}), {
+    headers: {
+      "Content-Type": "application/json",
+      "Access-control-allow-origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+    }
+  });
 }
 
 function sitInGameSlot(ctx: RouteCtx, meta: RouterMeta) {
@@ -258,53 +285,148 @@ function decodeCards(cardStr: string[]) {
   });
 }
 
-function handlePlayCards(ctx, server) {
-  const { gameId } = ctx.params;
-  const game = games[gameId];
-  console.log("play card action", ctx.data);
-  const { playerId, cards } = ctx.data;
-  console.log("body", playerId, cards);
+// new
+function playCardHandler(ctx: RouteCtx, meta: RouterMeta) {
+  const { gameCode } = ctx.params;
+  const { userId, cards } = ctx.data;
   const decodedCards = decodeCards(cards);
-  const result = game.performAction(playerId, "playCards", decodedCards);
-  console.log("action result", gameId, result);
-  if (DEBUG_MODE) {
-    const res = new Response(
-      JSON.stringify({
-        id: gameId,
-        ...games[gameId],
-      })
-    );
+  const room = readRoomGame(gameCode)
+  try {
+    const result = room.playCards(userId, decodedCards);
+  
+    Object.entries(room.players).forEach(entry => {
+      const wsClient = wsClients.get(entry[1]?.userId)
+      if (!wsClient) return
+      const playerPayload = {
+        type: 'player-update',
+        payload: {
+          ...room.getPlayerUpdate(entry[0])
+        }
+      }
+      wsClient.send(JSON.stringify(playerPayload))
+    })
+    meta.server.publish(makeGameChannel(room.gameCode), JSON.stringify({
+      type: 'room-update',
+      payload: room.getViewerData(),
+      // ...room,
+    }))
+  
+    return new Response(JSON.stringify({
+      result,
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        "Access-control-allow-origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+      }
+    })
+  } catch (err) {
+    return errorResponse(err.message, ERROR_INVALID_ROOM_REQUEST, 400)
+  }
+}
 
-    if (ENABLE_CORS) {
-      res.headers.set("Access-Control-Allow-Origin", "*");
-      res.headers.set(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS"
-      );
+// new
+function passCardHandler(ctx: RouteCtx, meta: RouterMeta) {
+  const { gameCode } = ctx.params;
+  const { userId } = ctx.data;
+
+  // const game = games[gameId];
+  // const { playerId } = ctx.data;
+  const room = readRoomGame(gameCode)
+  const result = room.passTurn(userId);
+
+  console.log("action result", gameCode, userId, result);
+  Object.entries(room.players).forEach(entry => {
+    const wsClient = wsClients.get(entry[1]?.userId)
+    if (!wsClient) return
+    const playerPayload = {
+      type: 'player-update',
+      payload: {
+        ...room.getPlayerUpdate(entry[0])
+      }
     }
-    return res;
-  }
-
-  return result;
+    wsClient.send(JSON.stringify(playerPayload))
+  })
+  meta.server.publish(makeGameChannel(room.gameCode), JSON.stringify({
+    type: 'room-update',
+    payload: room.getViewerData(),
+    // ...room,
+  }))
+  
+  return new Response(JSON.stringify({
+    result,
+  }), {
+    headers: {
+      "Content-Type": "application/json",
+      "Access-control-allow-origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+    }
+  })
 }
 
-function handlePassTurn(ctx, server) {
-  const { gameId } = ctx.params;
-  const game = games[gameId];
-  const { playerId } = ctx.data;
-  const result = game.performAction(playerId, "passTurn");
-  console.log("action result", gameId, playerId, result);
-  if (DEBUG_MODE) {
-    return new Response(
-      JSON.stringify({
-        id: gameId,
-        ...games[gameId],
-      })
-    );
-  }
+// old
+// function handlePlayCards(ctx: RouteCtx, server: RouterMeta) {
+//   const { gameId } = ctx.params;
+//   const game = games[gameId];
+//   console.log("play card action", ctx.data);
+//   const { playerId, cards } = ctx.data;
+//   console.log("body", playerId, cards);
+//   const decodedCards = decodeCards(cards);
+//   const result = game.performAction(playerId, "playCards", decodedCards);
+//   console.log("action result", gameId, result);
 
-  return result;
-}
+//   const wsClient = wsClients.get(playerId)
+//   const room = getRoomIdByGameId(gameId)
+//   const slot = room.getSlotByPlayerId(playerId)
+//   const playerPayload = {
+//     type: 'player-update',
+//     payload: {
+//       ...game.getPlayerData(slot),
+//     }
+//   }
+//   wsClient.send(JSON.stringify(playerPayload))
+  
+//   server.server.publish(makeGameChannel(room.gameCode), JSON.stringify({
+//     ...room,
+//   }))
+//   if (DEBUG_MODE) {
+//     const res = new Response(
+//       JSON.stringify({
+//         id: gameId,
+//         ...games[gameId],
+//       })
+//     );
+
+//     if (ENABLE_CORS) {
+//       res.headers.set("Access-Control-Allow-Origin", "*");
+//       res.headers.set(
+//         "Access-Control-Allow-Methods",
+//         "GET, POST, PUT, DELETE, OPTIONS"
+//       );
+//     }
+//     return res;
+//   }
+
+//   return result;
+// }
+
+// function handlePassTurn(ctx, server) {
+//   const { gameId } = ctx.params;
+//   const game = games[gameId];
+//   const { playerId } = ctx.data;
+//   const result = game.performAction(playerId, "passTurn");
+//   console.log("action result", gameId, playerId, result);
+//   if (DEBUG_MODE) {
+//     return new Response(
+//       JSON.stringify({
+//         id: gameId,
+//         ...games[gameId],
+//       })
+//     );
+//   }
+
+//   return result;
+// }
 
 app.get("/game/:gameId", (ctx) => {
   const { gameId } = ctx.params;
@@ -328,12 +450,18 @@ app.get("/game/:gameId", (ctx) => {
 });
 
 app.post("/game", handleCreateGame, { body: "json" });
-app
-  .post("/game/:gameId/actions/play-cards", handlePlayCards, { body: "json" })
-  .wrap("/game/:gameId/actions/play-cards", send);
-app
-  .post("/game/:gameId/actions/pass-turn", handlePassTurn, { body: "json" })
-  .wrap("/game/:gameId/actions/pass-turn", send);
+// delete this
+// app
+//   .post("/game/:gameId/actions/play-cards", handlePlayCards, { body: "json" })
+//   .wrap("/game/:gameId/actions/play-cards", send);
+// keep this
+app.post("/room/:gameCode/actions/play-cards", playCardHandler, { body: "json" })
+app.post("/room/:gameCode/actions/pass-turn", passCardHandler, { body: "json" })
+
+// delete this
+// app
+//   .post("/game/:gameId/actions/pass-turn", handlePassTurn, { body: "json" })
+//   .wrap("/game/:gameId/actions/pass-turn", send);
 
 app
   .post("/room", createRoom, {
@@ -363,13 +491,14 @@ app
   })
 // app.post('/room/:gameCode/action/leave', leaveRoom, {
 //   body: 'json'
-app
-  .post("/room/:gameCode/action/start", startGame, {
-    body: "json",
-  })
-  .wrap("/room/:gameCode/action/start", send);
+  // .wrap("/room/:gameCode/action/start", send);
 app.post('/room/:gameCode/action/sit', sitInGameSlot, {
   body: 'json'
 })
+
+app.post("/room/:gameCode/action/start", startGame, {
+  body: 'json'
+})
+
 app.listen();
 console.log("Starting big 2 server on port: ", PORT);
