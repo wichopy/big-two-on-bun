@@ -15,9 +15,6 @@ type GameStatus =
   // game is over, need to start a new game
   | 'over'
 
-const ErrorInvalidPlay = 'invalid-play' as const
-const ErrorDontHaveCards = 'dont-have-cards' as const
-const ErrorNoCards = 'no-cards' as const
 const SuccessValidPlay = 'valid-play' as const
 const PassTurn = 'pass-turn' as const
 const GameOver = 'game-over' as const
@@ -230,7 +227,7 @@ export class Game {
   public performAction(playerId: string, action: Actions, cards?: Card[]) {
     if (action === 'playCards') {
       if (!cards?.length) {
-        return ErrorNoCards
+        throw new Error('no cards in your play')
       }
       
       if (
@@ -239,10 +236,10 @@ export class Game {
         this.gameStatus === 'first-turn'
       ) {
         if (!verifyUserHasCards(this.players[playerId].cards, cards)) {
-          return ErrorDontHaveCards
+          throw new Error('not enough cards in this play')
         }
         if (!validatePlay(undefined, cards)){
-          return ErrorInvalidPlay
+          throw new Error('not a valid play')
         }
         this.gameStatus = 'in-progress'
         this.lastPlayedCards = cards
@@ -257,14 +254,19 @@ export class Game {
         this.setToNextTurnWithValidMoves()
         return SuccessValidPlay
       } else {
-        return ErrorInvalidPlay
+        throw new Error('not a valid play')
       }
     }
 
     if (action === 'passTurn') {
-      if (this.gameStatus === 'first-turn' || this.lastPlayedCardsPlayer === playerId) {
-        console.log('you cannot pass this turn')
-        return ErrorInvalidPlay
+      if (this.currentPlayerTurn !== playerId) {
+        throw new Error('you cannot pass when its not your turn')
+      }
+      if (this.gameStatus === 'first-turn') {
+        throw new Error('you cannot pass on the first turn')
+      }
+      if (this.lastPlayedCardsPlayer === playerId) {
+        throw new Error('you cannot pass when everyone else has passed on your last card play')
       }
       this.log.push(`player ${playerId} passed their turn`)
       this.setToNextTurnWithValidMoves()

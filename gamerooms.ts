@@ -91,17 +91,34 @@ export class Room {
     }
   }
 
-  // TODO:
-  unsitFromGameSlot() {
+  unsitFromGameSlot(userId: string) {
     // Can only do when game is not in progress
+    if (this.currentGameId) {
+      throw new Error('cannot unsit from game slot when game is in progress')
+    }
 
+    if (!this.isPlayer(userId)) {
+      throw new Error('user is not a player')
+    }
+
+    if (this.status !== 'waiting') {
+      throw new Error('cannot unsit from game slot when game is in progress')
+    }
+
+    const slot = Object.entries(this.players).find(entry => entry[1].userId === userId)[0]
+    this.viewers.push({
+      id: this.players[slot].userId,
+      name: this.players[slot].name,
+    })
+    this.players[slot] = null
   }
 
   sitInGameSlot(userId: string, gameSlot: string) {
     console.log(`add player ${userId} to slot ${gameSlot}`)
-    // if (!this.isViewer(userId) || this.hostId !== userId) {
-    //   throw new Error('user is not a viewer or host')
-    // }
+    const validUserIds = [this.hostId, ...this.viewers.map(user => user.id)]
+    if (!validUserIds.find(id => id === userId)) {
+      throw new Error('user is not a viewer or host')
+    }
     
     const player = {
       userId,
@@ -109,17 +126,21 @@ export class Room {
       name: this.viewers.find(user => user.id === userId)?.name || this.hostName
     }
     this.players[gameSlot] = player
-    console.log(this.players)
     this.viewers = this.viewers.filter(user => user.id !== userId)
   }
 
   startGame() {
+    if (!!this.currentGameId) {
+      throw new Error('game already started')
+    }
+  
     const slotstokeep = Object.entries(this.players).map(entry => entry[1] ? entry[0] : null).filter(Boolean)
     const game = createGame({
       numPlayers: slotstokeep.length,
       slotsToKeep: slotstokeep,
     })
     this.currentGameId = game.id
+    this.status === 'playing'
   }
 
   getSlotByPlayerId(userId: string) {
@@ -133,6 +154,10 @@ export class Room {
       throw new Error('not your turn')
     }
     const result = game.performAction(slot, 'playCards', cards)
+    if (result === 'game-over') {
+      this.status = 'waiting'
+      this.currentGameId = ''
+    }
     return result
   }
 
@@ -150,7 +175,7 @@ export class Room {
       gameCode: this.gameCode,
       viewers: this.viewers,
       players: this.players,
-      status: this.status,
+      roomStatus: this.status,
       ...game.getViewerData(),
     }
   }

@@ -6,13 +6,8 @@ import {
   joinRoomByGameCode,
   startGame as startRoomGame,
   readRoom as readRoomGame,
-  getRoomIdByGameId,
 } from "./gamerooms";
-// import { CORS, writeHead } from "@stricjs/utils";
 import { ServerWebSocket } from "bun";
-
-// const cors = new CORS();
-// const send = writeHead({ headers: cors.headers });
 
 const DEBUG_MODE = true;
 const ENABLE_CORS = true;
@@ -173,7 +168,7 @@ function createRoom(ctx, server) {
   console.log("returning data", {
     gameCode: room.gameCode,
     hostName: room.hostName,
-    status: room.status,
+    roomStatus: room.status,
   });
   const res = new Response(
     JSON.stringify({
@@ -261,22 +256,26 @@ function sitInGameSlot(ctx: RouteCtx, meta: RouterMeta) {
   const { userId, userName, slot } = ctx.data;
 
   const room = readRoomGame(gameCode)
-  room.sitInGameSlot(userId, slot)
-
-  meta.server.publish(makeGameChannel(gameCode), JSON.stringify({ 
-    type: 'room-update',
-    payload: {
-      ...room,
-    }
-  }))
-
-  return new Response(JSON.stringify({}), {
-    headers: {
-      "Content-Type": "application/json",
-      "Access-control-allow-origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
-    }
-  })
+  try {
+    room.sitInGameSlot(userId, slot)
+  
+    meta.server.publish(makeGameChannel(gameCode), JSON.stringify({ 
+      type: 'room-update',
+      payload: {
+        ...room,
+      }
+    }))
+  
+    return new Response(JSON.stringify({}), {
+      headers: {
+        "Content-Type": "application/json",
+        "Access-control-allow-origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+      }
+    })
+  } catch (err) {
+    return errorResponse(err.message, ERROR_INVALID_ROOM_REQUEST, 400)
+  }
 }
 
 function decodeCards(cardStr: string[]) {
@@ -308,7 +307,6 @@ function playCardHandler(ctx: RouteCtx, meta: RouterMeta) {
     meta.server.publish(makeGameChannel(room.gameCode), JSON.stringify({
       type: 'room-update',
       payload: room.getViewerData(),
-      // ...room,
     }))
   
     return new Response(JSON.stringify({
@@ -333,100 +331,39 @@ function passCardHandler(ctx: RouteCtx, meta: RouterMeta) {
   // const game = games[gameId];
   // const { playerId } = ctx.data;
   const room = readRoomGame(gameCode)
-  const result = room.passTurn(userId);
-
-  console.log("action result", gameCode, userId, result);
-  Object.entries(room.players).forEach(entry => {
-    const wsClient = wsClients.get(entry[1]?.userId)
-    if (!wsClient) return
-    const playerPayload = {
-      type: 'player-update',
-      payload: {
-        ...room.getPlayerUpdate(entry[0])
+  try {
+    const result = room.passTurn(userId);
+  
+    Object.entries(room.players).forEach(entry => {
+      const wsClient = wsClients.get(entry[1]?.userId)
+      if (!wsClient) return
+      const playerPayload = {
+        type: 'player-update',
+        payload: {
+          ...room.getPlayerUpdate(entry[0])
+        }
       }
-    }
-    wsClient.send(JSON.stringify(playerPayload))
-  })
-  meta.server.publish(makeGameChannel(room.gameCode), JSON.stringify({
-    type: 'room-update',
-    payload: room.getViewerData(),
-    // ...room,
-  }))
-  
-  return new Response(JSON.stringify({
-    result,
-  }), {
-    headers: {
-      "Content-Type": "application/json",
-      "Access-control-allow-origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
-    }
-  })
+      wsClient.send(JSON.stringify(playerPayload))
+    })
+    meta.server.publish(makeGameChannel(room.gameCode), JSON.stringify({
+      type: 'room-update',
+      payload: room.getViewerData(),
+      // ...room,
+    }))
+    
+    return new Response(JSON.stringify({
+      result,
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        "Access-control-allow-origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+      }
+    })
+  } catch (err) {
+    return errorResponse(err.message, ERROR_INVALID_ROOM_REQUEST, 400)
+  }
 }
-
-// old
-// function handlePlayCards(ctx: RouteCtx, server: RouterMeta) {
-//   const { gameId } = ctx.params;
-//   const game = games[gameId];
-//   console.log("play card action", ctx.data);
-//   const { playerId, cards } = ctx.data;
-//   console.log("body", playerId, cards);
-//   const decodedCards = decodeCards(cards);
-//   const result = game.performAction(playerId, "playCards", decodedCards);
-//   console.log("action result", gameId, result);
-
-//   const wsClient = wsClients.get(playerId)
-//   const room = getRoomIdByGameId(gameId)
-//   const slot = room.getSlotByPlayerId(playerId)
-//   const playerPayload = {
-//     type: 'player-update',
-//     payload: {
-//       ...game.getPlayerData(slot),
-//     }
-//   }
-//   wsClient.send(JSON.stringify(playerPayload))
-  
-//   server.server.publish(makeGameChannel(room.gameCode), JSON.stringify({
-//     ...room,
-//   }))
-//   if (DEBUG_MODE) {
-//     const res = new Response(
-//       JSON.stringify({
-//         id: gameId,
-//         ...games[gameId],
-//       })
-//     );
-
-//     if (ENABLE_CORS) {
-//       res.headers.set("Access-Control-Allow-Origin", "*");
-//       res.headers.set(
-//         "Access-Control-Allow-Methods",
-//         "GET, POST, PUT, DELETE, OPTIONS"
-//       );
-//     }
-//     return res;
-//   }
-
-//   return result;
-// }
-
-// function handlePassTurn(ctx, server) {
-//   const { gameId } = ctx.params;
-//   const game = games[gameId];
-//   const { playerId } = ctx.data;
-//   const result = game.performAction(playerId, "passTurn");
-//   console.log("action result", gameId, playerId, result);
-//   if (DEBUG_MODE) {
-//     return new Response(
-//       JSON.stringify({
-//         id: gameId,
-//         ...games[gameId],
-//       })
-//     );
-//   }
-
-//   return result;
-// }
 
 app.get("/game/:gameId", (ctx) => {
   const { gameId } = ctx.params;
@@ -450,19 +387,8 @@ app.get("/game/:gameId", (ctx) => {
 });
 
 app.post("/game", handleCreateGame, { body: "json" });
-// delete this
-// app
-//   .post("/game/:gameId/actions/play-cards", handlePlayCards, { body: "json" })
-//   .wrap("/game/:gameId/actions/play-cards", send);
-// keep this
 app.post("/room/:gameCode/actions/play-cards", playCardHandler, { body: "json" })
 app.post("/room/:gameCode/actions/pass-turn", passCardHandler, { body: "json" })
-
-// delete this
-// app
-//   .post("/game/:gameId/actions/pass-turn", handlePassTurn, { body: "json" })
-//   .wrap("/game/:gameId/actions/pass-turn", send);
-
 app
   .post("/room", createRoom, {
     body: "json",
