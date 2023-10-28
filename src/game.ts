@@ -133,7 +133,7 @@ export class Game {
       }
     }
 
-    let lowestPlayer
+    let lowestPlayer: string
     let lowestCard: Card = {
       value: '2',
       suite: 'Spade'

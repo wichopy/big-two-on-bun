@@ -144,7 +144,7 @@ export class Room {
   }
 
   getSlotByPlayerId(userId: string) {
-    return Object.keys(this.players).find(key => this.players[key].userId === userId)
+    return Object.keys(this.players).find(key => this.players[key]?.userId === userId)
   }
 
   playCards(userId: string, cards: Card[]) {
@@ -154,11 +154,15 @@ export class Room {
       throw new Error('not your turn')
     }
     const result = game.performAction(slot, 'playCards', cards)
-    if (result === 'game-over') {
+    return result
+  }
+
+  endGame() {
+    const game = getGame(this.currentGameId)
+    if (game.gameStatus === 'over') {
       this.status = 'waiting'
       this.currentGameId = ''
     }
-    return result
   }
 
   passTurn(userId: string) {
@@ -176,7 +180,7 @@ export class Room {
       viewers: this.viewers,
       players: this.players,
       roomStatus: this.status,
-      ...game.getViewerData(),
+      ...game?.getViewerData(),
     }
   }
 
@@ -202,7 +206,8 @@ export function handleNewRoom(userId: string, userName: string) {
 }
 
 export function joinRoomByGameCode(gameCode: string, userId: string, userName: string) {
-  const room = store[gameCode]
+  const formattedCode = gameCode.toUpperCase()
+  const room = store[formattedCode]
   if (!room) {
     throw new Error('room does not exist')
   }
