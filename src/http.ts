@@ -54,6 +54,7 @@ const extractToken = (url: string) => {
 
 const app = new Router({
   port: PORT,
+  hostname: '0.0.0.0'
 });
 
 const makeGameChannel = (gameCode: string) => `channel-game-${gameCode}`;

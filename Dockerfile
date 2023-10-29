@@ -36,6 +36,6 @@ COPY --from=prerelease /usr/src/app/index.ts .
 COPY --from=prerelease /usr/src/app/src ./src
 
 # run the app4r5
-USER bun
+# USER bun
 EXPOSE 3000
 ENTRYPOINT [ "bun", "./index.ts" ]
