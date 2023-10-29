@@ -125,7 +125,7 @@ export class Game {
     if (numPlayers < 4) {
       let deleteCount = 0
       for (let player of Object.values(this.players)) {
-        if (deleteCount < 4 - numPlayers && !slotsToKeep.includes(player.id)) {
+        if (deleteCount < 4 - numPlayers && !slotsToKeep?.includes(player.id)) {
           console.log('delete player', player)
           delete this.players[player.id]
           deleteCount += 1
