@@ -54,7 +54,16 @@ const extractToken = (url: string) => {
 
 const app = new Router({
   port: PORT,
-  hostname: '0.0.0.0'
+  hostname: '0.0.0.0',
+  websocket: {
+    open(ws){
+      console.log('a new client opened a ws connection', ws)
+    },
+    message: (ws, message) => {
+      console.log('a new message from a client', ws, message)
+    }
+  }
+
 });
 
 const makeGameChannel = (gameCode: string) => `channel-game-${gameCode}`;
@@ -103,6 +112,7 @@ app.ws("/room/updates", {
     };
 
     const msg = `${tokenObj.userName} has entered the game ${tokenObj.gameCode}}`;
+    console.log(msg, tokenObj)
     const channel = makeGameChannel(tokenObj.gameCode);
     ws.subscribe(channel);
     ws.publish(channel, msg);
