@@ -215,12 +215,14 @@ describe('Game', () => {
   test('less than 4 players', () => {
     const game = new Game({
       numPlayers: 3,
+      slotsToKeep: ['player 1', 'player 2', 'player 3']
     })
 
     expect(Object.keys(game.players).length).toBe(3)
 
     const game2 = new Game({
       numPlayers: 2,
+      slotsToKeep: ['player 1', 'player 2']
     })
 
     expect(Object.keys(game2.players).length).toBe(2)
