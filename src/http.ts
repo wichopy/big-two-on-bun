@@ -55,14 +55,14 @@ const extractToken = (url: string) => {
 const app = new Router({
   port: PORT,
   hostname: '0.0.0.0',
-  websocket: {
-    open(ws){
-      console.log('a new client opened a ws connection', ws)
-    },
-    message: (ws, message) => {
-      console.log('a new message from a client', ws, message)
-    }
-  }
+  // websocket: {
+  //   open(ws){
+  //     console.log('a new client opened a ws connection', ws)
+  //   },
+  //   message: (ws, message) => {
+  //     console.log('a new message from a client', ws, message)
+  //   }
+  // }
 
 });
 
@@ -94,9 +94,8 @@ function getPlayerPayload(room, userId) {
 function getRoomPayload(room, game) {
   return {
     type: "room-update",
-    payload: {
-      ...room.getViewerData(),
-    },
+    payload: 
+      room.getViewerData(),
   };
 }
 
@@ -117,13 +116,16 @@ app.ws("/room/updates", {
     ws.subscribe(channel);
     ws.publish(channel, msg);
     const room = readRoomGame(tokenObj.gameCode);
-    const game = getGame(room.currentGameId);
+    let game
+    if (room?.currentGameId) {
+      game = getGame(room?.currentGameId);
+    }
     // const payload = getRoomPayload(room, game)
     const payload = {
       type: "room-update",
       payload: {
-        ...room,
-        game: game?.getViewerData(),
+        ...room?.getViewerData(),
+        // game: game?.getViewerData(),
       },
     };
     console.log("notify of join", payload);
@@ -329,10 +331,9 @@ function sitInGameSlot(ctx: RouteCtx, meta: RouterMeta) {
     // const payload = getRoomPayload(room, undefined)
     const payload = {
       type: "room-update",
-      payload: {
-        ...room,
-      },
+      payload: room.getViewerData(),
     };
+    console.log('emit after sit', payload)
     meta.server.publish(makeGameChannel(gameCode), JSON.stringify(payload));
 
     return new Response(JSON.stringify({}), {
