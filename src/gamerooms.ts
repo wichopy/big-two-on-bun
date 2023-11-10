@@ -180,6 +180,7 @@ export class Room {
       viewers: this.viewers,
       players: this.players,
       roomStatus: this.status,
+      hostId: this.hostId,
       ...game?.getViewerData(),
     }
   }
