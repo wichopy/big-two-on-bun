@@ -11,7 +11,7 @@ import { ServerWebSocket } from "bun";
 
 const DEBUG_MODE = true;
 const ENABLE_CORS = true;
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const serverError = (message, code) => ({
   error: true,
@@ -55,6 +55,7 @@ const extractToken = (url: string) => {
 const app = new Router({
   port: PORT,
   hostname: '0.0.0.0',
+  // hostname: '192.168.2.58'
   // websocket: {
   //   open(ws){
   //     console.log('a new client opened a ws connection', ws)
@@ -326,6 +327,10 @@ function sitInGameSlot(ctx: RouteCtx, meta: RouterMeta) {
   const { userId, userName, slot } = ctx.data;
 
   const room = readRoomGame(gameCode);
+
+  if (!room) {
+    return errorResponse("room not found", ERROR_ROOM_NOT_FOUND, 404);
+  }
   try {
     room.sitInGameSlot(userId, slot);
     // const payload = getRoomPayload(room, undefined)
