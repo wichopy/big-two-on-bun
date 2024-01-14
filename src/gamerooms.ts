@@ -1,5 +1,5 @@
 import { Card } from './logic'
-import { Game, createGame, getGame } from './game'
+import { Game, createGame, getGame, slot1, slot2, slot3, slot4 } from './game'
 
 interface User {
   id: string
@@ -35,6 +35,14 @@ interface GameRoom {
 
 type RoomStatus = 'waiting' | 'playing'
 
+const makePlayer = (user: User, gameSlot: string) => (
+  {
+    userId: user.id,
+    gameSlot,
+    name: user.name,
+  }
+)
+
 export class Room {
   hostId: string
   hostName: string
@@ -56,13 +64,18 @@ export class Room {
     this.hostName = hostName
     this.viewers = []
     this.players = {
-      'player 1': null,
-      'player 2': null,
-      'player 3': null,
-      'player 4': null,
+      [slot1]: null,
+      [slot2]: null,
+      [slot3]: null,
+      [slot4]: null,
     }
     this.currentGameId = ''
     this.status = 'waiting'
+
+    this.players[slot1] = makePlayer({
+      id: hostId,
+      name: hostName,
+    }, slot1)
   }
 
   isInRoom(userId: string) {
@@ -77,9 +90,19 @@ export class Room {
     return Object.values(this.players).some(player => player.userId === userId)
   }
 
+  private getNextAvailableSlot() {
+    const nextSlot = Object.entries(this.players).find(slotEntry => slotEntry[1] === null)
+
+    return nextSlot?.[0]
+  }
+  
   joinRoom(user: User) {
     console.log('adding user', user, 'to game', this.gameCode)
-    this.viewers.push(user)
+    // find next available slot
+    const nextSlot = this.getNextAvailableSlot()
+    if (nextSlot) {
+      this.players[nextSlot] = makePlayer(user, nextSlot[0])
+    }
   }
 
   // Handle what happens in mid game??

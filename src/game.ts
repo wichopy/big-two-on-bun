@@ -21,6 +21,11 @@ const GameOver = 'game-over' as const
 
 const store: Record<string, Game> = {}
 
+export const slot1 = "player 1"
+export const slot2 = "player 2"
+export const slot3 = "player 3"
+export const slot4 = "player 4"
+
 export interface GameState {
   currentPlayerTurn: string;
   playerRotation: string[];
@@ -85,29 +90,29 @@ export class Game {
     const deck = new Deck();
     this.players = {}
     this.log = []
-    this.players['player 1'] = {
+    this.players[slot1] = {
       cards: [],
-      name: 'player 1',
+      name: slot1,
       status: 'empty',
-      id: 'player 1'
+      id: slot1
     }
-    this.players['player 2'] = {
+    this.players[slot2] = {
       cards: [],
       status: 'empty',
-      name: 'player 2',
-      id: 'player 2'
+      name: slot2,
+      id: slot2
     }
-    this.players['player 3'] = {
+    this.players[slot3] = {
       cards: [],
       status: 'empty',
-      name: 'player 3',
-      id: 'player 3'
+      name: slot3,
+      id: slot3
     }
-    this.players['player 4'] = {
+    this.players[slot4] = {
       cards: [],
       status: 'empty',
-      name: 'player 4',
-      id: 'player 4'
+      name: slot4,
+      id: slot4
     }
   
     while(deck.cards.length > 0) {
@@ -208,10 +213,10 @@ export class Game {
       status: this.gameStatus,
       log: this.log,
       playerCards: {
-        'player 1': this.players['player 1']?.cards?.length || 0,
-        'player 2': this.players['player 2']?.cards?.length || 0,
-        'player 3': this.players['player 3']?.cards?.length || 0,
-        'player 4': this.players['player 4']?.cards?.length || 0,
+        slot1: this.players[slot1]?.cards?.length || 0,
+        slot2: this.players[slot2]?.cards?.length || 0,
+        slot3: this.players[slot3]?.cards?.length || 0,
+        slot4: this.players[slot4]?.cards?.length || 0,
       },
     }
   }
