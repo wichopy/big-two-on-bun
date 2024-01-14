@@ -225,7 +225,14 @@ export function joinRoomByGameCode(gameCode: string, userId: string, userName: s
 }
 
 export function readRoom(gameCode) {
-  return store[gameCode]
+  return {
+    ...store[gameCode],
+    canStartGame: Object
+      .entries(this.players)
+      .map(entry => entry[1] ? entry[0] : null)
+      .filter(Boolean)
+      .length < 2,
+  }
 }
 
 export function startGame(gameCode: string) {
