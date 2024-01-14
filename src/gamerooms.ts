@@ -135,6 +135,9 @@ export class Room {
     }
   
     const slotstokeep = Object.entries(this.players).map(entry => entry[1] ? entry[0] : null).filter(Boolean)
+    if (slotstokeep.length < 2) {
+      throw new Error('not enough players')
+    }
     const game = createGame({
       numPlayers: slotstokeep.length,
       slotsToKeep: slotstokeep,
